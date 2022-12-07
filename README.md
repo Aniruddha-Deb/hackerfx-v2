@@ -9,11 +9,12 @@ a rewrite in python with a bunch of new features:
 - Serialize a file and write the bitstream to the image
 
 Some examples:
+
 ![monochrome](examples/monochrome.png)
 ![looks pretty good](examples/monochrome_out.png)
 
 ![multicoloured](examples/jojo.jpg)
-![multicoloured output](examples/jojo_out.jpg)
+![multicoloured output](examples/jojo_out.png)
 
 ![different colour](examples/initiald.jpg)
 ![and hex output](examples/initiald_out.jpg)
