@@ -19,6 +19,12 @@ Some examples:
 ![different colour](examples/initiald.jpg)
 ![and hex output](examples/initiald_out.jpg)
 
+Installation:
+
+1. (Optional) Create a virtual environment using `venv` or `virtualenv`.
+2. Run `pip install -r requirements.txt`.
+3. Invoke the script with appropriate arguments as per usage given below.   
+
 Usage:
 ```
 usage: hackerfx.py [-h] [-x] [-c COLOR] [-o OUTPUT] [-d DATA] input_image
