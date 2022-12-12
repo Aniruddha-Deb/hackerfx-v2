@@ -6,6 +6,7 @@ import sys
 import subprocess
 import os
 import shutil
+from multiprocessing import Pool
 
 zero = np.array([
     [0, 0, 0, 0, 0, 0],
@@ -264,6 +265,11 @@ class BinaryDataEncoder:
             return random_bit()
 
 
+def process_pipe(img, color, outpath, data_gen):
+    process(f"frames_input/{img}", color=color, outpath=f"frames_processed/{img}", data_gen=data_gen)
+    print(img + " converted")
+
+
 def process_video(vidpath, color=np.array([[[0x39, 0xFF, 0x14]]]),
                   outpath='output.mp4', data_gen_class=BinaryArray, data_file=None):
     os.makedirs("frames_input", exist_ok=True)
@@ -277,15 +283,17 @@ def process_video(vidpath, color=np.array([[[0x39, 0xFF, 0x14]]]),
     img_list = os.listdir("frames_input")
     dims = get_dims(f"frames_input/{img_list[0]}")
     data_gen = data_gen_class(dims[0], dims[1], data_file)
-    for img in img_list:
-        process(f"frames_input/{img}", color=color, outpath=f"frames_processed/{img}", data_gen=data_gen)
-        print(img + " converted")
+    pool = Pool()
+    pool.starmap(process_pipe, zip(img_list, [color]*len(img_list),
+                 [f"frames_processed/{img}" for img in img_list], [data_gen]*len(img_list)))
+    pool.close()
+    pool.join()
     if os.path.exists('audio.m4a'):
-        subprocess.call(['ffmpeg', '-i', 'frames_processed/img%d.png', '-i', 'audio.m4a', '-c:v', 'libx264', '-r',
-                         str(frame_rate), '-pix_fmt', 'yuv420p', '-c:a', 'copy', '-shortest', outpath])
+        subprocess.call(['ffmpeg', '-framerate', str(frame_rate), '-i', 'frames_processed/img%d.png', '-i',
+                         'audio.m4a', '-c:v', 'libx264', '-pix_fmt', 'yuv420p', '-c:a', 'copy', '-shortest', outpath])
     else:
-        subprocess.call(['ffmpeg', '-i', 'frames_processed/img%d.png', '-r',
-                        str(frame_rate), '-pix_fmt', 'yuv420p', '-shortest', outpath])
+        subprocess.call(['ffmpeg', '-framerate', str(frame_rate), '-i',
+                        'frames_processed/img%d.png', '-shortest', outpath])
 
     shutil.rmtree('frames_input')
     shutil.rmtree('frames_processed')
