@@ -31,7 +31,7 @@ Installation:
 
 Usage for images:
 ```
-usage: hackerfx.py [-h] [-x] [-c COLOR] [-o OUTPUT] [-d DATA] input_image
+usage: hackerfx.py [-h] [-x] [-v] [-c COLOR] [-o OUTPUT] [-d DATA] input_image
 
 Binarizes images in the hacker format
 
@@ -41,6 +41,7 @@ positional arguments:
 optional arguments:
   -h, --help            show this help message and exit
   -x, --hex             Encode Image in Hex
+  -v, --video           Encode video
   -c COLOR, --color COLOR
                         RGB Hex Output Image color (default: Hacker Green - 0x39FF14)
   -o OUTPUT, --output OUTPUT
@@ -48,20 +49,4 @@ optional arguments:
   -d DATA, --data DATA  Data file to encode into image
 ```
 
-Usage for videos(requires ffmpeg and ffprobe)
-```
-usage: hackerfx_video.py [-h] [-x] [-c COLOR] [-o OUTPUT] input_video
-
-Binarizes videos in the hacker format
-
-positional arguments:
-  input_video           Path to input video
-
-options:
-  -h, --help            show this help message and exit
-  -x, --hex             Encode Video in Hex
-  -c COLOR, --color COLOR
-                        RGB Hex Output Video color (default: Hacker Green - 0x39FF14)
-  -o OUTPUT, --output OUTPUT
-                        Output file name
-```
+NOTE: videos need ffmpeg and ffprobe.
