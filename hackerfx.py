@@ -165,12 +165,45 @@ def parse_color(color_hex):
     ]]])
 
 
-def process(imgpath, color=np.array([[[0x39, 0xFF, 0x14]]]), outpath='output.png', data_gen=random_bit):
+class BinaryArray:
+    def __init__(self, width, height, filepath=None):
+        self.width = width
+        self.height = height
+        if filepath is None:
+            self.data = [[random_bit() for x in range(height)] for y in range(width)]
+        else:
+            enc = BinaryDataEncoder(filepath)
+            self.data = [[enc.get_next_token() for x in range(height)] for y in range(width)]
+
+    def get_bit(self, x, y):
+        return self.data[x][y]
+
+
+class HexArray:
+    def __init__(self, width, height, filepath=None):
+        self.width = width
+        self.height = height
+        if filepath is None:
+            self.data = [[random_hex() for x in range(height)] for y in range(width)]
+        else:
+            enc = HexDataEncoder(filepath)
+            self.data = [[enc.get_next_token() for x in range(height)] for y in range(width)]
+
+    def get_bit(self, x, y):
+        return self.data[x][y]
+
+
+def get_dims(imgpath):
+    img = Image.open(imgpath)
+    img = img.resize((img.size[0]//4, img.size[1]//4))
+    return np.array(img).shape
+
+
+def process(imgpath, data_gen, color=np.array([[[0x39, 0xFF, 0x14]]]), outpath='output.png'):
     img = Image.open(imgpath)
     img = img.resize((img.size[0]//4, img.size[1]//4))
     img = img.convert('L')
     data = np.array(img)  # 1-D image
-
     outimg = np.zeros((data.shape[0]*6, data.shape[1]*6))
     # outimg = outimg[np.newaxis,...].repeat(3,axis=0) # add 3 channels
     outimg = outimg[..., np.newaxis].repeat(3, axis=2)
@@ -179,7 +212,7 @@ def process(imgpath, color=np.array([[[0x39, 0xFF, 0x14]]]), outpath='output.png
         for j in range(data.shape[1]):
             # discretizing
             intensity = data[i, j]/255
-            render_char(i*6, j*6, outimg, data_gen(), intensity, color)
+            render_char(i*6, j*6, outimg, data_gen.get_bit(i, j), intensity, color)
 
     output = Image.fromarray(np.uint8(outimg), mode='RGB')
     output.save(outpath)
@@ -231,7 +264,8 @@ class BinaryDataEncoder:
             return random_bit()
 
 
-def process_video(vidpath, color=np.array([[[0x39, 0xFF, 0x14]]]), outpath='output.mp4', data_gen=random_bit):
+def process_video(vidpath, color=np.array([[[0x39, 0xFF, 0x14]]]),
+                  outpath='output.mp4', data_gen_class=BinaryArray, data_file=None):
     os.makedirs("frames_input", exist_ok=True)
     os.makedirs("frames_processed", exist_ok=True)
 
@@ -241,6 +275,8 @@ def process_video(vidpath, color=np.array([[[0x39, 0xFF, 0x14]]]), outpath='outp
                                       'stream=avg_frame_rate', '-of', 'default=nw=1:nk=1', vidpath],
                                      stdout=subprocess.PIPE, stderr=subprocess.STDOUT).stdout)
     img_list = os.listdir("frames_input")
+    dims = get_dims(f"frames_input/{img_list[0]}")
+    data_gen = data_gen_class(dims[0], dims[1], data_file)
     for img in img_list:
         process(f"frames_input/{img}", color=color, outpath=f"frames_processed/{img}", data_gen=data_gen)
         print(img + " converted")
@@ -276,17 +312,11 @@ if __name__ == "__main__":
                         help="Data file to encode into image")
 
     args = parser.parse_args(sys.argv[1:])
-    data_func = random_bit
+    data_func = BinaryArray
     if args.hex:
-        data_func = random_hex
-    if args.data:
-        if args.hex:
-            enc = HexDataEncoder(args.data)
-        else:
-            enc = BinaryDataEncoder(args.data)
-        data_func = enc.get_next_token
-
+        data_func = HexArray
     if args.video:
-        process_video(args.input, color=args.color, outpath=args.output, data_gen=data_func)
+        process_video(args.input, color=args.color, outpath=args.output, data_gen_class=data_func, data_file=args.data)
     else:
-        process(args.input, color=args.color, outpath=args.output, data_gen=data_func)
+        process(args.input, color=args.color, outpath=args.output,
+                data_gen=data_func(get_dims(args.input)[0], get_dims(args.input)[1], args.data))
