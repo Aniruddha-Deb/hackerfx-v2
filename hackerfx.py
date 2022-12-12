@@ -1,18 +1,11 @@
-# 
-# 1. Grayscale image
-# 2. Obtain masks for various intensity values
-#    - 0-31: 0
-#    - 32-63: 1/8
-#    ....
-#    - 224-255: 1
-# 3. Print and overlay
-#
-
 from PIL import Image
 from argparse import ArgumentParser
 import numpy as np
 import random
 import sys
+import subprocess
+import os
+import shutil
 
 zero = np.array([
     [0,0,0,0,0,0],
@@ -230,17 +223,39 @@ class BinaryDataEncoder:
         else:
             return random_bit()
 
+def process_video(vidpath, color=np.array([[[0x39,0xFF,0x14]]]), outpath='output.mp4', data_gen=random_bit):
+    os.makedirs("frames_input", exist_ok=True)
+    os.makedirs("frames_processed", exist_ok=True)
+
+    subprocess.run(['ffmpeg', '-i', vidpath, 'frames_input/img%d.png', '-hide_banner'])
+    subprocess.run(['ffmpeg', '-i', vidpath, '-vn', '-acodec', 'copy', 'audio.m4a'])
+    frames = eval(subprocess.run(['ffprobe', '-v', 'error', '-select_streams', 'v:0', '-show_entries',
+                                  'stream=avg_frame_rate', '-of', 'default=nw=1:nk=1', vidpath],
+                                 stdout=subprocess.PIPE, stderr=subprocess.STDOUT).stdout)
+    img_list = os.listdir("frames_input")
+    for img in img_list:
+        process(f"frames_input/{img}", color=color, outpath=f"frames_processed/{img}", data_gen=data_gen)
+        print(img + " converted")
+    subprocess.call(['ffmpeg', '-i', 'frames_processed/img%d.png', '-i', 'audio.m4a', '-c:v', 'libx264', '-r',
+                                     str(frames), '-pix_fmt', 'yuv420p', '-c:a', 'copy', '-shortest', outpath])
+
+    shutil.rmtree('frames_input')
+    shutil.rmtree('frames_processed')
+    os.remove("audio.m4a")
+
 if __name__ == "__main__":
     parser = ArgumentParser(
             prog = "hackerfx.py",
-            description="Binarizes images in the hacker format"
+            description="Binarizes images/videos in a hacker-themed format"
             )
     parser.add_argument('input', metavar='input_image', type=str, 
                         help="Path to input image")
     parser.add_argument('-x', '--hex', action='store_true',
-                        help="Encode Image in Hex")
+                        help="Encode using Hex digits")
+    parser.add_argument('-v', '--video', action='store_true',
+                        help="Encode video")
     parser.add_argument('-c', '--color', type=parse_color, default="0x39FF14",
-                        help="RGB Hex Output Image color (default: Hacker Green - 0x39FF14)")
+                        help="RGB Output color in hex (default: Hacker Green - 0x39FF14)")
     parser.add_argument('-o', '--output', type=str, default='output.png',
                         help="Output file name")
     parser.add_argument('-d', '--data', type=str, 
@@ -257,5 +272,8 @@ if __name__ == "__main__":
             enc = BinaryDataEncoder(args.data)
         data_func = enc.get_next_token
 
-    process(args.input, color=args.color, outpath=args.output, data_gen=data_func)
+    if args.video:
+        process_video(args.input, color=args.color, outpath=args.output, data_gen=data_func)
+    else:
+        process(args.input, color=args.color, outpath=args.output, data_gen=data_func)
 
